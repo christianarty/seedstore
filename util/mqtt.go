@@ -29,7 +29,6 @@ func initMQTT(handlers *Handlers) mqtt.Client {
 	var messagePubHandler mqtt.MessageHandler
 	var connectHandler mqtt.OnConnectHandler
 	var connectLostHandler mqtt.ConnectionLostHandler
-
 	if handlers.OnReceivedMessageHandler != nil {
 		messagePubHandler = handlers.OnReceivedMessageHandler
 	} else {

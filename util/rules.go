@@ -9,22 +9,8 @@ import (
 	"strings"
 )
 
-type Rule struct {
-	Value    string `mapstructure:"value"`
-	Operator string `mapstructure:"operator"`
-	Entity   string `mapstructure:"entity"`
-	Code     string `mapstructure:"code"`
-}
-
-type ServerRules struct {
-	Server struct {
-		DefaultCode    string `mapstructure:"defaultCode"`
-		CodeConditions []Rule `mapstructure:"codeConditions"`
-	} `mapstructure:"server"`
-}
-
 func ProcessEvent(message types.MQTTMessage) (string, error) {
-	var serverRules ServerRules
+	var serverRules types.Config
 	err := viper.Unmarshal(&serverRules)
 	if err != nil {
 		return "", err
@@ -37,7 +23,7 @@ func ProcessEvent(message types.MQTTMessage) (string, error) {
 	return serverRules.Server.DefaultCode, nil
 }
 
-func evalExpression(condition Rule, message types.MQTTMessage) bool {
+func evalExpression(condition types.Rule, message types.MQTTMessage) bool {
 	caseFormatter := cases.Title(language.English)
 	r := reflect.ValueOf(message)
 	field := reflect.Indirect(r).FieldByName(caseFormatter.String(condition.Entity))

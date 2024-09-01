@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -32,23 +29,18 @@ func publish(cmd *cobra.Command, args []string) {
 	hash, _ := cmd.Flags().GetString("hash")
 	location, _ := cmd.Flags().GetString("location")
 	category, _ := cmd.Flags().GetString("category")
+	topic, _ := cmd.Flags().GetString("topic")
 	message := types.MQTTMessage{
 		Name:     name,
 		Hash:     hash,
 		Location: location,
 		Category: category,
 	}
-	pub(client, "topic/test", &message)
+	pub(client, topic, &message)
 }
 
 func init() {
 	rootCmd.AddCommand(publishCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// publishCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
@@ -56,6 +48,8 @@ func init() {
 	publishCmd.Flags().StringP("hash", "s", "", "the hash of the torrent at hand")
 	publishCmd.Flags().StringP("location", "l", "", "the location of the torrent at hand")
 	publishCmd.Flags().StringP("category", "c", "", "the category code for the torrent")
+	publishCmd.Flags().StringP("topic", "t", "queue", "the MQTT topic to use for publishing the message")
+
 }
 
 func pub(client mqtt.Client, topic string, message *types.MQTTMessage) {
