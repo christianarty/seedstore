@@ -1,14 +1,14 @@
 package cmd
 
 import (
-	"Queue4DownloadGo/types"
-	"Queue4DownloadGo/util"
 	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"seedstore/types"
+	"seedstore/util"
 	"strings"
 	"sync"
 	"syscall"

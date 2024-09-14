@@ -13,10 +13,10 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "Queue4DownloadGo",
+	Use:   "Seedstore",
 	Short: "Automatically download file from remote server using MQTT and LFTP",
 	Long: `
-Queue4DownloadGo is a CLI binary that empowers allows for users to easily subscribe and
+Seedstore is a CLI binary that empowers allows for users to easily subscribe and
 easily download from a remote location, initiating the connection from the client.`,
 }
 
@@ -32,7 +32,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.Q4D/config.json)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.seedstore/config.json)")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -44,7 +44,7 @@ func initConfig() {
 		// Find home directory.
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
-		q4dConfigDir := filepath.Join(home, ".Q4D")
+		q4dConfigDir := filepath.Join(home, ".seedstore")
 
 		// Search config in home directory with name ".Queue4DownloadGo" (without extension).
 		viper.AddConfigPath(q4dConfigDir)
@@ -52,7 +52,7 @@ func initConfig() {
 		viper.SetConfigName("config")
 	}
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.SetEnvPrefix("Q4D")
+	viper.SetEnvPrefix("SEEDSTORE")
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.

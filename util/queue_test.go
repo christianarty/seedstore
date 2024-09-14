@@ -1,7 +1,7 @@
 package util
 
 import (
-	"Queue4DownloadGo/types"
+	"seedstore/types"
 	"testing"
 )
 

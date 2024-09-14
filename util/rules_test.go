@@ -1,8 +1,8 @@
 package util
 
 import (
-	"Queue4DownloadGo/types"
 	"bytes"
+	"seedstore/types"
 	"testing"
 
 	"github.com/spf13/viper"

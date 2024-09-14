@@ -1,8 +1,8 @@
 package util
 
 import (
-	"Queue4DownloadGo/types"
 	"reflect"
+	"seedstore/types"
 	"strings"
 
 	"github.com/spf13/viper"

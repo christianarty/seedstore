@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"Queue4DownloadGo/types"
-	"Queue4DownloadGo/util"
 	"encoding/json"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/cobra"
 	"log/slog"
+	"seedstore/types"
+	"seedstore/util"
 )
 
 // publishCmd represents the publish command

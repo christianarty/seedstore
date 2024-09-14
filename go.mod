@@ -1,4 +1,4 @@
-module Queue4DownloadGo
+module seedstore
 
 go 1.22.6
 

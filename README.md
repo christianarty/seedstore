@@ -1,11 +1,11 @@
-# Queue4DownloadGo
+# Seedstore
 
 #### Inspired by [Queue4Download](https://github.com/weaselBuddha/Queue4Download)
 
 ## Overview
 Take a look at the inspiration above to learn more about how this is setup
 ## Setup
-You need to have a `config.json` located in `$HOME/.Q4D`
+You need to have a `config.json` located in `$HOME/.seedstore`
 and here is the schema for it:
 ```json5
 {

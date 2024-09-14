@@ -1,6 +1,6 @@
 package main
 
-import "Queue4DownloadGo/cmd"
+import "seedstore/cmd"
 
 func main() {
 	cmd.Execute()
