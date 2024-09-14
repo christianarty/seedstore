@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -37,7 +38,8 @@ func onMessageReceived(client mqtt.Client, msg mqtt.Message) {
 
 	err := json.Unmarshal(msg.Payload(), &jsonMsg)
 	if err != nil {
-		fmt.Println("[ERR] Json formatting error:", err)
+		slog.Error("Json formatting error: " + err.Error())
+		return
 	}
 	fmt.Println("[INFO] JSON Message:", string(msg.Payload()))
 	queue <- jsonMsg
@@ -46,22 +48,27 @@ func onMessageReceived(client mqtt.Client, msg mqtt.Message) {
 
 func subscribe(cmd *cobra.Command, args []string) {
 	client := util.InitMQTTWithHandlers(onMessageReceived, nil, nil)
-	topic, _ := cmd.Flags().GetString("topic")
-
+	topic, err := cmd.Flags().GetString("topic")
+	if err != nil {
+		slog.Error("Topic flag is invalid:" + err.Error())
+		return
+	}
+	// This is to keep the subscribe command running indefinitely until there is a signal to kill
+	// AKA CTRL-C
 	keepAlive := make(chan os.Signal)
 	signal.Notify(keepAlive, os.Interrupt, syscall.SIGTERM)
 
 	sub(client, topic)
 
 	<-keepAlive
-	fmt.Println("\n[INFO] Ending the subscription...")
+	slog.Info("Ending the subscription...")
 	client.Disconnect(250)
 }
 
 func sub(client mqtt.Client, topic string) {
 	token := client.Subscribe(topic, 1, nil)
 	token.Wait()
-	fmt.Printf("[INFO] Subscribed to topic: %s\n", topic)
+	slog.Info("Subscribed to topic: " + topic)
 }
 
 func processEvent() {
@@ -70,7 +77,7 @@ func processEvent() {
 	fmt.Println(msg)
 	code, err := util.ProcessEvent(item)
 	if err != nil {
-		fmt.Println("[ERR] Code processing error:", err)
+		slog.Error("Code processing error: " + err.Error())
 	}
 	wg.Add(1)
 	go initiateTransfer(code, item.Location)
@@ -98,19 +105,24 @@ func initiateTransfer(code string, location string) {
 		username, password, host, toPath, config.Client.LFTP.Threads, location)
 	binPath, err := checkIfCommandExists("lftp")
 	if err != nil {
-		fmt.Println("[ERR] Command lftp does not exist")
+		slog.Error("Command lftp does not exist")
 		return
 	}
-	statusCode, err := runLftpCommand(binPath, lftpArgsAsDir)
+	statusCode, err := runCommand(binPath, lftpArgsAsDir)
 	if statusCode != 0 && err == nil {
-		fmt.Println("[INFO] Retrying the command to clone as a file...")
-		statusCode, err = runLftpCommand(binPath, lftpArgsAsFile)
+		slog.Info("Retrying the command to clone as a file...")
+		statusCode, err = runCommand(binPath, lftpArgsAsFile)
 		if statusCode != 0 {
-			fmt.Println("[ERR] Error trying to clone the file")
+			slog.Error("Error trying to clone the file")
 			if err != nil {
-				fmt.Println("[ERR] ", err.Error())
+				slog.Error(err.Error())
 			}
+		} else {
+			slog.Info("Successfully cloned the file")
 		}
+	}
+	if statusCode == 0 {
+		slog.Info("Successfully cloned the directory")
 	}
 
 }
@@ -123,36 +135,63 @@ func init() {
 }
 
 func checkIfCommandExists(bin string) (path string, err error) {
+	var fMsg string
 	path, err = exec.LookPath(bin)
 	if err != nil {
-		fmt.Printf("[ERR] didn't find 'lftp' executable\n")
+		fMsg = fmt.Sprintf("Command %s does not exist in PATH", bin)
+		slog.Error(fMsg)
 		return path, err
-	} else {
-		fmt.Printf("[INFO] 'lftp' executable is in '%s'\n", path)
-		return path, nil
 	}
+	fMsg = fmt.Sprintf("'%s' exists, found at %s", bin, path)
+	slog.Info(fMsg)
+	return path, nil
+
 }
 
-func runLftpCommand(binPath string, args string) (exitCode int, e error) {
+func runCommand(binPath string, args string) (exitCode int, e error) {
 	fullCmd := fmt.Sprintf("%s %s", binPath, args)
 	cmd := exec.Command("bash", "-c", fullCmd)
 	var stdout, stderr bytes.Buffer
 	// Write to stdout/err but also capture it in a variable
-	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
-	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+	prefixWriterStdOut := NewPrefixWriter(os.Stdout, "[CMD] ")
+	prefixWriterStdErr := NewPrefixWriter(os.Stderr, "[CMD-ERR] ")
+	cmd.Stdout = io.MultiWriter(prefixWriterStdOut, &stdout)
+	cmd.Stderr = io.MultiWriter(prefixWriterStdErr, &stderr)
 	err := cmd.Run()
 	if err != nil {
 		switch e := err.(type) {
 		case *exec.Error:
-			fmt.Println("[ERR] The command failed executing: ", err)
+			slog.Error("The command failed executing: " + err.Error())
 			return 126, err
 		case *exec.ExitError:
-			fmt.Println("[ERR] The command executed, but an error happened")
-			fmt.Println("[ERR] Exit Code: ", e.ExitCode())
+			errCodeMsg := fmt.Sprintf("Exit Code: %d", e.ExitCode())
+			slog.Error("The command executed, but an error happened")
+			slog.Error(errCodeMsg)
 			return e.ExitCode(), nil
 		default:
 			log.Fatal("[FATAL] Unexpected error executing your command,", err)
 		}
 	}
 	return 0, nil
+}
+
+type PrefixWriter struct {
+	w      io.Writer
+	prefix string
+}
+
+func NewPrefixWriter(w io.Writer, prefix string) *PrefixWriter {
+	return &PrefixWriter{w, prefix}
+}
+
+func (e PrefixWriter) Write(p []byte) (int, error) {
+	prefix := []byte(e.prefix)
+	n, err := e.w.Write(append(prefix, p...))
+	if err != nil {
+		return n, err
+	}
+	if n != len(p) {
+		return n, io.ErrShortWrite
+	}
+	return len(p), nil
 }

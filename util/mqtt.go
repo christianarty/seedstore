@@ -5,6 +5,8 @@ import (
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
+	"log"
+	"log/slog"
 )
 
 type Handlers struct {
@@ -33,14 +35,15 @@ func initMQTT(handlers *Handlers) mqtt.Client {
 		messagePubHandler = handlers.OnReceivedMessageHandler
 	} else {
 		messagePubHandler = func(client mqtt.Client, msg mqtt.Message) {
-			fmt.Printf("[MQTT] Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+			m := fmt.Sprintf("[MQTT] Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+			slog.Info(m)
 		}
 	}
 	if handlers.OnConnectionLostHandler != nil {
 		connectLostHandler = handlers.OnConnectionLostHandler
 	} else {
 		connectLostHandler = func(client mqtt.Client, err error) {
-			fmt.Printf("[MQTT] Connect lost: %v", err)
+			slog.Error("[MQTT] Connect lost: ", err)
 		}
 	}
 
@@ -48,23 +51,23 @@ func initMQTT(handlers *Handlers) mqtt.Client {
 		connectHandler = handlers.OnConnectHandler
 	} else {
 		connectHandler = func(client mqtt.Client) {
-			fmt.Println("[MQTT] Connected")
+			slog.Info("[MQTT] Connected")
 		}
 	}
 
 	broker := viper.GetString("mqtt.host")
-	fmt.Printf("Connecting to %s\n", broker)
+	slog.Info("Connecting to", "broker", broker)
 	username := viper.GetString("mqtt.user")
 	password := viper.GetString("mqtt.password")
 	port := viper.GetInt("mqtt.port")
 	if port == 0 {
-		fmt.Println("[WARNING] PORT env not set, using the default 1883")
+		slog.Warn("PORT var not set, using the default 1883")
 		port = 1883
 	}
 
 	clientId := viper.GetString("mqtt.clientId")
 	if clientId == "" {
-		fmt.Println("[WARNING] CLIENT_ID is not set in .env, generating new uuid as client id")
+		slog.Warn("CLIENT_ID var not set, generating new uuid as client id")
 		clientId = uuid.NewString()
 	}
 	opts := mqtt.NewClientOptions()
@@ -78,7 +81,7 @@ func initMQTT(handlers *Handlers) mqtt.Client {
 	opts.OnConnectionLost = connectLostHandler
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
+		log.Fatal(token.Error())
 	}
 	return client
 }

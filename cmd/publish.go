@@ -4,9 +4,9 @@ import (
 	"Queue4DownloadGo/types"
 	"Queue4DownloadGo/util"
 	"encoding/json"
-	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/cobra"
+	"log/slog"
 )
 
 // publishCmd represents the publish command
@@ -55,7 +55,7 @@ func init() {
 func pub(client mqtt.Client, topic string, message *types.MQTTMessage) {
 	msg, err := json.Marshal(message)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error(err.Error())
 	}
 	token := client.Publish(topic, 0, false, msg)
 	token.Wait()
