@@ -1,5 +1,8 @@
 FROM golang:1.23
 LABEL authors="christianarty"
+LABEL org.opencontainers.image.source="https://github.com/christianarty/seedstore"
+LABEL org.opencontainers.image.description="Seedstore image for subscriptions"
+LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /root
 RUN mkdir "/root/bin"
