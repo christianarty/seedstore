@@ -5,14 +5,15 @@ type LFTP struct {
 	Segments int `mapstructure:"segments"`
 }
 
-type ClientCredentials struct {
+type ServerInfo struct {
+	Host     string `mapstructure:"host"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 }
 type ClientRules struct {
 	CodeDestinations map[string]string `mapstructure:"codeDestinations"`
 	LFTP             LFTP              `mapstructure:"lftp"`
-	Credentials      ClientCredentials `mapstructure:"credentials"`
+	ServerInfo       ServerInfo        `mapstructure:"serverInfo"`
 }
 
 type Rule struct {
@@ -34,7 +35,7 @@ type TorrentRules struct {
 }
 
 type MQTTRules struct {
-	User     string `mapstructure:"user"`
+	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	Port     int    `mapstructure:"port"`
 	ClientId string `mapstructure:"clientId"`
@@ -42,8 +43,7 @@ type MQTTRules struct {
 }
 
 type Config struct {
-	MQTT    MQTTRules    `mapstructure:"mqtt"`
-	Torrent TorrentRules `mapstructure:"torrent"`
-	Server  ServerRules  `mapstructure:"server"`
-	Client  ClientRules  `mapstructure:"client"`
+	MQTT   MQTTRules   `mapstructure:"mqtt"`
+	Server ServerRules `mapstructure:"server"`
+	Client ClientRules `mapstructure:"client"`
 }

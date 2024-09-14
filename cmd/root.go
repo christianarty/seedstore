@@ -44,10 +44,10 @@ func initConfig() {
 		// Find home directory.
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
-		q4dConfigDir := filepath.Join(home, ".seedstore")
+		seedstoreConfigDir := filepath.Join(home, ".seedstore")
 
 		// Search config in home directory with name ".Queue4DownloadGo" (without extension).
-		viper.AddConfigPath(q4dConfigDir)
+		viper.AddConfigPath(seedstoreConfigDir)
 		viper.SetConfigType("json")
 		viper.SetConfigName("config")
 	}

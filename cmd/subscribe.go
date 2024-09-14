@@ -104,23 +104,21 @@ func processEvent(item types.MQTTMessage) {
 
 func initiateTransfer(name string, code string, location string) {
 	defer wg.Done()
-	var config types.Config
-	err := viper.Unmarshal(&config)
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	codeDestinations := viper.GetStringMapString("client.codeDestinations")
 	toPath, found := codeDestinations[strings.ToLower(code)]
 	if !found {
 		log.Fatal("No code destination found")
 	}
-	username := viper.GetString("client.credentials.username")
-	password := viper.GetString("client.credentials.password")
-	host := viper.GetString("torrent.source")
+	username := viper.GetString("client.serverInfo.username")
+	password := viper.GetString("client.serverInfo.password")
+	host := viper.GetString("client.serverInfo.host")
+	lftpThreads := viper.GetInt("client.lftp.threads")
+	lftpSegments := viper.GetInt("client.lftp.segments")
 	lftpArgsAsDir := fmt.Sprintf("-u \"%s,%s\" sftp://%s/  -e \"set sftp:auto-confirm yes; lcd %s; mirror -c --parallel=%d --use-pget-n=%d '%s' ;quit\"",
-		username, password, host, toPath, config.Client.LFTP.Threads, config.Client.LFTP.Segments, location)
+		username, password, host, toPath, lftpThreads, lftpSegments, location)
 	lftpArgsAsFile := fmt.Sprintf("-u \"%s,%s\" sftp://%s/  -e \"set sftp:auto-confirm yes; lcd %s; pget -n %d '%s' ;quit\"",
-		username, password, host, toPath, config.Client.LFTP.Threads, location)
+		username, password, host, toPath, lftpThreads, location)
 	binPath, err := util.CheckIfCommandExists("lftp")
 	if err != nil {
 		slog.Error("Command lftp does not exist")

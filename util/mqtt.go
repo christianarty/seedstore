@@ -58,7 +58,7 @@ func initMQTT(handlers *Handlers) mqtt.Client {
 
 	broker := viper.GetString("mqtt.host")
 	slog.Info("Connecting to", "broker", broker)
-	username := viper.GetString("mqtt.user")
+	username := viper.GetString("mqtt.username")
 	password := viper.GetString("mqtt.password")
 	port := viper.GetInt("mqtt.port")
 	if port == 0 {
