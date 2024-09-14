@@ -12,6 +12,8 @@ ENV PS1="$(whoami)@$(hostname):$(pwd)\\$ " \
   TERM="xterm" \
   PATH="/root/bin:$PATH"
 
+# Install mosquitto, mosquitto_sub, lftp, bash, nano, and openssh
+RUN apt update && apt install -y mosquitto mosquitto-clients lftp bash nano openssh-server
 
 # pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
 COPY go.mod go.sum ./
