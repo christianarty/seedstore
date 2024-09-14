@@ -3,8 +3,9 @@ package util
 import (
 	"Queue4DownloadGo/types"
 	"bytes"
-	"github.com/spf13/viper"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 func TestRules(t *testing.T) {
@@ -35,7 +36,7 @@ func TestRules(t *testing.T) {
 		Location: "falasdfasdfala",
 	}
 	expectedCode := "C"
-	code, err := ProcessEvent(mqttMessage)
+	code, err := GenerateCodeFromRules(mqttMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func TestRulesFail(t *testing.T) {
 		Location: "falasdfasdfala",
 	}
 	expectedCode := "V"
-	code, err := ProcessEvent(mqttMessage)
+	code, err := GenerateCodeFromRules(mqttMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestRulesAnotherField(t *testing.T) {
 		Location: "falasdfasdfala",
 	}
 	expectedCode := "H"
-	code, err := ProcessEvent(mqttMessage)
+	code, err := GenerateCodeFromRules(mqttMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,7 @@ func TestRulesNoConditions(t *testing.T) {
 		Location: "falasdfasdfala",
 	}
 	expectedCode := "V"
-	code, err := ProcessEvent(mqttMessage)
+	code, err := GenerateCodeFromRules(mqttMessage)
 	if err != nil {
 		t.Fatal(err)
 	}

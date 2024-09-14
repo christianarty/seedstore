@@ -3,21 +3,20 @@ package cmd
 import (
 	"Queue4DownloadGo/types"
 	"Queue4DownloadGo/util"
-	"bytes"
 	"encoding/json"
 	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"io"
 	"log"
 	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // subscribeCmd represents the subscribe command
@@ -30,20 +29,12 @@ var subscribeCmd = &cobra.Command{
 	Run: subscribe,
 }
 var wg sync.WaitGroup
-var queue = make(chan types.MQTTMessage, 2)
+var fullQueue util.ConcurrentQueue[types.MQTTMessage]
+var ticker = time.NewTicker(200 * time.Millisecond)
 
-func onMessageReceived(client mqtt.Client, msg mqtt.Message) {
-	// It is assumed that the message is json, so we should unmarshall it.
-	var jsonMsg types.MQTTMessage
-
-	err := json.Unmarshal(msg.Payload(), &jsonMsg)
-	if err != nil {
-		slog.Error("Json formatting error: " + err.Error())
-		return
-	}
-	fmt.Println("[INFO] JSON Message:", string(msg.Payload()))
-	queue <- jsonMsg
-	go processEvent()
+func init() {
+	rootCmd.AddCommand(subscribeCmd)
+	subscribeCmd.Flags().StringP("topic", "t", "queue", "the MQTT topic to use for subscribing the message, should be same as publish")
 }
 
 func subscribe(cmd *cobra.Command, args []string) {
@@ -58,33 +49,60 @@ func subscribe(cmd *cobra.Command, args []string) {
 	keepAlive := make(chan os.Signal)
 	signal.Notify(keepAlive, os.Interrupt, syscall.SIGTERM)
 
-	sub(client, topic)
-
+	token := client.Subscribe(topic, 1, nil)
+	token.Wait()
+	slog.Info("Subscribed to topic: " + topic)
+	go eventProcessor()
 	<-keepAlive
 	slog.Info("Ending the subscription...")
 	client.Disconnect(250)
 }
 
-func sub(client mqtt.Client, topic string) {
-	token := client.Subscribe(topic, 1, nil)
-	token.Wait()
-	slog.Info("Subscribed to topic: " + topic)
+// onMessageReceived is a callback function that is called when a message is received on the MQTT topic that the client is subscribed to.
+// It unmarshals the JSON payload of the message into a types.MQTTMessage struct, logs the payload, and enqueues the message in the fullQueue.
+func onMessageReceived(client mqtt.Client, msg mqtt.Message) {
+	// It is assumed that the message is json, so we should unmarshall it.
+	var jsonMsg types.MQTTMessage
+
+	err := json.Unmarshal(msg.Payload(), &jsonMsg)
+	if err != nil {
+		slog.Error("Json formatting error: " + err.Error())
+		return
+	}
+	logJson := fmt.Sprintf("MQTT Payload: %s", string(msg.Payload()))
+	slog.Info(logJson)
+	fullQueue.Enqueue(jsonMsg)
 }
 
-func processEvent() {
-	item := <-queue
-	msg := fmt.Sprintf("[INFO] Processing Name - \"%s\"", item.Name)
-	fmt.Println(msg)
-	code, err := util.ProcessEvent(item)
+// eventProcessor is a goroutine that runs on a timer and processes events from the fullQueue.
+// It dequeues an event from the fullQueue and calls processEvent to handle the event.
+// This function is responsible for the main event processing loop of the application.
+func eventProcessor() {
+	for range ticker.C {
+		if !fullQueue.IsEmpty() {
+			item := fullQueue.Dequeue()
+			processEvent(item)
+		}
+	}
+
+}
+
+// processEvent is a function that processes an event from the fullQueue. It generates a code from the rules in the config, and initiates a transfer of the paylaod to the configured destination.
+// The function first logs a message indicating the name of the event being processed. It then calls util.GenerateCodeFromRules to generate a code from the rules defined in your config. If there is an error generating the code, it logs an error message.
+// The function then adds a new goroutine to the waitgroup (wg) and calls initiateTransfer to initiate the transfer of the payload to the configured destination. The function then waits for the transfer to complete before returning.
+func processEvent(item types.MQTTMessage) {
+	msg := fmt.Sprintf("Processing Name - \"%s\"", item.Name)
+	slog.Info(msg)
+	code, err := util.GenerateCodeFromRules(item)
 	if err != nil {
 		slog.Error("Code processing error: " + err.Error())
 	}
 	wg.Add(1)
-	go initiateTransfer(code, item.Location)
+	go initiateTransfer(item.Name, code, item.Location)
 	wg.Wait()
 }
 
-func initiateTransfer(code string, location string) {
+func initiateTransfer(name string, code string, location string) {
 	defer wg.Done()
 	var config types.Config
 	err := viper.Unmarshal(&config)
@@ -103,95 +121,29 @@ func initiateTransfer(code string, location string) {
 		username, password, host, toPath, config.Client.LFTP.Threads, config.Client.LFTP.Segments, location)
 	lftpArgsAsFile := fmt.Sprintf("-u \"%s,%s\" sftp://%s/  -e \"set sftp:auto-confirm yes; lcd %s; pget -n %d '%s' ;quit\"",
 		username, password, host, toPath, config.Client.LFTP.Threads, location)
-	binPath, err := checkIfCommandExists("lftp")
+	binPath, err := util.CheckIfCommandExists("lftp")
 	if err != nil {
 		slog.Error("Command lftp does not exist")
 		return
 	}
-	statusCode, err := runCommand(binPath, lftpArgsAsDir)
-	if statusCode != 0 && err == nil {
-		slog.Info("Retrying the command to clone as a file...")
-		statusCode, err = runCommand(binPath, lftpArgsAsFile)
-		if statusCode != 0 {
-			slog.Error("Error trying to clone the file")
-			if err != nil {
-				slog.Error(err.Error())
-			}
+	statusCode, err := util.RunCommand(binPath, lftpArgsAsDir)
+	if statusCode != 0 {
+		if err != nil {
+			slog.Error("The directory failed to clone and there was an error: " + err.Error())
 		} else {
-			slog.Info("Successfully cloned the file")
+			slog.Info("Retrying the command to clone as a file...")
+			statusCode, err = util.RunCommand(binPath, lftpArgsAsFile)
+			if statusCode != 0 {
+				slog.Error("Error trying to clone the file: " + name)
+				if err != nil {
+					slog.Error(err.Error())
+				}
+			} else {
+				slog.Info("Successfully cloned the file: " + name)
+			}
 		}
+	} else {
+		slog.Info("Successfully cloned the directory: " + name)
 	}
-	if statusCode == 0 {
-		slog.Info("Successfully cloned the directory")
-	}
 
-}
-
-func init() {
-	rootCmd.AddCommand(subscribeCmd)
-
-	subscribeCmd.Flags().StringP("topic", "t", "queue", "the MQTT topic to use for subscribing the message, should be same as publish")
-
-}
-
-func checkIfCommandExists(bin string) (path string, err error) {
-	var fMsg string
-	path, err = exec.LookPath(bin)
-	if err != nil {
-		fMsg = fmt.Sprintf("Command %s does not exist in PATH", bin)
-		slog.Error(fMsg)
-		return path, err
-	}
-	fMsg = fmt.Sprintf("'%s' exists, found at %s", bin, path)
-	slog.Info(fMsg)
-	return path, nil
-
-}
-
-func runCommand(binPath string, args string) (exitCode int, e error) {
-	fullCmd := fmt.Sprintf("%s %s", binPath, args)
-	cmd := exec.Command("bash", "-c", fullCmd)
-	var stdout, stderr bytes.Buffer
-	// Write to stdout/err but also capture it in a variable
-	prefixWriterStdOut := NewPrefixWriter(os.Stdout, "[CMD] ")
-	prefixWriterStdErr := NewPrefixWriter(os.Stderr, "[CMD-ERR] ")
-	cmd.Stdout = io.MultiWriter(prefixWriterStdOut, &stdout)
-	cmd.Stderr = io.MultiWriter(prefixWriterStdErr, &stderr)
-	err := cmd.Run()
-	if err != nil {
-		switch e := err.(type) {
-		case *exec.Error:
-			slog.Error("The command failed executing: " + err.Error())
-			return 126, err
-		case *exec.ExitError:
-			errCodeMsg := fmt.Sprintf("Exit Code: %d", e.ExitCode())
-			slog.Error("The command executed, but an error happened")
-			slog.Error(errCodeMsg)
-			return e.ExitCode(), nil
-		default:
-			log.Fatal("[FATAL] Unexpected error executing your command,", err)
-		}
-	}
-	return 0, nil
-}
-
-type PrefixWriter struct {
-	w      io.Writer
-	prefix string
-}
-
-func NewPrefixWriter(w io.Writer, prefix string) *PrefixWriter {
-	return &PrefixWriter{w, prefix}
-}
-
-func (e PrefixWriter) Write(p []byte) (int, error) {
-	prefix := []byte(e.prefix)
-	n, err := e.w.Write(append(prefix, p...))
-	if err != nil {
-		return n, err
-	}
-	if n != len(p) {
-		return n, io.ErrShortWrite
-	}
-	return len(p), nil
 }

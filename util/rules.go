@@ -2,14 +2,15 @@ package util
 
 import (
 	"Queue4DownloadGo/types"
+	"reflect"
+	"strings"
+
 	"github.com/spf13/viper"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"reflect"
-	"strings"
 )
 
-func ProcessEvent(message types.MQTTMessage) (string, error) {
+func GenerateCodeFromRules(message types.MQTTMessage) (string, error) {
 	var serverRules types.Config
 	err := viper.Unmarshal(&serverRules)
 	if err != nil {

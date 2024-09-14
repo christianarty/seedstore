@@ -2,11 +2,12 @@ package util
 
 import (
 	"fmt"
-	"github.com/eclipse/paho.mqtt.golang"
-	"github.com/google/uuid"
-	"github.com/spf13/viper"
 	"log"
 	"log/slog"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/google/uuid"
+	"github.com/spf13/viper"
 )
 
 type Handlers struct {
@@ -43,7 +44,7 @@ func initMQTT(handlers *Handlers) mqtt.Client {
 		connectLostHandler = handlers.OnConnectionLostHandler
 	} else {
 		connectLostHandler = func(client mqtt.Client, err error) {
-			slog.Error("[MQTT] Connect lost: ", err)
+			slog.Error("[MQTT] Connect lost: " + err.Error())
 		}
 	}
 
