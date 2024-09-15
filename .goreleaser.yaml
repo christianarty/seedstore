@@ -42,7 +42,7 @@ archives:
 dockers:
   - image_templates:
       ["ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-amd64"]
-    dockerfile: Dockerfile
+    dockerfile: goreleaser.dockerfile
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -55,7 +55,7 @@ dockers:
   - image_templates:
       ["ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-arm64v8"]
     goarch: arm64
-    dockerfile: Dockerfile
+    dockerfile: goreleaser.dockerfile
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64/v8"
