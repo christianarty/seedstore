@@ -39,41 +39,16 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-dockers:
-  - image_templates:
-      ["ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-amd64"]
-    dockerfile: goreleaser.dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description="For various clients for subscriptions"
-      - --label=org.opencontainers.image.url=https://github.com/christianarty/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/christianarty/{{ .ProjectName }}
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-  - image_templates:
-      ["ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-arm64v8"]
-    goarch: arm64
-    dockerfile: goreleaser.dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-      - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description="For various clients for subscriptions"
-      - --label=org.opencontainers.image.url=https://github.com/christianarty/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/christianarty/{{ .ProjectName }}
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-docker_manifests:
-  - name_template: ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}
-    image_templates:
-      - ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-amd64
-      - ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-arm64v8
-  - name_template: ghcr.io/christianarty/{{ .ProjectName }}:latest
-    image_templates:
-      - ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-amd64
-      - ghcr.io/christianarty/{{ .ProjectName }}:{{ .Version }}-arm64v8
+kos:
+  - repository: ghcr.io/christianarty/{{ .ProjectName }}
+    tags:
+      - "{{.Version}}"
+      - latest
+    bare: true
+    preserve_import_paths: false
+    platforms:
+      - linux/amd64
+      - linux/arm64
 changelog:
   sort: asc
   filters:
