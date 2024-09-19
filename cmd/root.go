@@ -2,14 +2,16 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cfgFile string
+var cfgDir string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -33,6 +35,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.seedstore/config.json)")
+	rootCmd.PersistentFlags().StringVar(&cfgDir, "configDir", "", "custom config directory (default is $HOME/.seedstore)")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -44,10 +47,13 @@ func initConfig() {
 		// Find home directory.
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
-		seedstoreConfigDir := filepath.Join(home, ".seedstore")
+		defaultSeedstoreConfigDir := filepath.Join(home, ".seedstore")
 
-		// Search config in home directory with name ".Queue4DownloadGo" (without extension).
-		viper.AddConfigPath(seedstoreConfigDir)
+		if cfgDir != "" {
+			viper.AddConfigPath(cfgDir)
+		}
+		// Search config in home directory with name ".seedstore" (without extension).
+		viper.AddConfigPath(defaultSeedstoreConfigDir)
 		viper.SetConfigType("json")
 		viper.SetConfigName("config")
 	}
