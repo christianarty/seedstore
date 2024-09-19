@@ -21,8 +21,5 @@ RUN apk add --no-cache mosquitto \
   jq \
   shadow 
 
-
-COPY root/ /
-ENV HOME=/config
-COPY --from=builder /seedstore/cli /seedstore
+COPY --from=builder /seedstore/cli /usr/local/bin
 VOLUME /config
