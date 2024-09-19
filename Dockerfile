@@ -22,9 +22,10 @@ RUN apk add --no-cache mosquitto \
   shadow 
 
 COPY --from=builder /seedstore/cli /usr/local/bin
+COPY init-seedstore.sh /usr/local/bin/init-seedstore.sh
 VOLUME /config
 
 EXPOSE 1883 22
 
-ENTRYPOINT [ "seedstore" ]
+ENTRYPOINT [ "init-seedstore.sh" ]
 CMD [ "subscribe", "--configDir", "/config" ]
