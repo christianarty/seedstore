@@ -23,3 +23,8 @@ RUN apk add --no-cache mosquitto \
 
 COPY --from=builder /seedstore/cli /usr/local/bin
 VOLUME /config
+
+EXPOSE 1883 22
+
+ENTRYPOINT [ "seedstore" ]
+CMD [ "subscribe", "--configDir", "/config" ]
