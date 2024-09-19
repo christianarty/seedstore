@@ -1,28 +1,25 @@
-FROM golang:1.23
-LABEL authors="christianarty"
-LABEL org.opencontainers.image.source="https://github.com/christianarty/seedstore"
-LABEL org.opencontainers.image.description="Seedstore image for subscriptions"
-LABEL org.opencontainers.image.licenses="MIT"
-
-WORKDIR /root
-
-RUN mkdir "/root/bin"
-
-ENV PS1="$(whoami)@$(hostname):$(pwd)\\$ " \
-  HOME="/root" \
-  TERM="xterm" \
-  PATH="/root/bin:$PATH"
-
-# Install mosquitto, mosquitto_sub, lftp, bash, nano, and openssh
-RUN apt update && apt install -y mosquitto mosquitto-clients lftp bash nano openssh-server
-
-# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
+FROM golang:1.23 AS builder
+WORKDIR /seedstore
 COPY go.mod go.sum ./
 RUN go mod download 
-
 COPY . .
+RUN CGO_ENABLED=0 go build -v -o ./cli/ ./...
 
-RUN go build -v -o /root/bin/ ./...
+FROM ghcr.io/linuxserver/baseimage-alpine:3.20 AS final
 
-CMD ["seedstore", "subscribe"]
-VOLUME ["/data"]
+# Install additional packages
+RUN apk add --no-cache mosquitto \
+  mosquitto-clients \
+  lftp \
+  bash \
+  nano \ 
+  openssh \ 
+  xz \
+  coreutils \
+  curl \
+  findutils \
+  jq \
+  shadow 
+
+COPY --from=builder /seedstore/cli /usr/local/bin
+VOLUME /config
