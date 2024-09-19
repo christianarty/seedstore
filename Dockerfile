@@ -21,11 +21,14 @@ RUN apk add --no-cache mosquitto \
   jq \
   shadow 
 
+RUN mkdir -p /root/.ssh && \
+  echo -e "Host *\n\tStrictHostKeyChecking accept-new\n\n" > /root/.ssh/config && \
+  chmod 600 /root/.ssh/config
+
 COPY --from=builder /seedstore/cli /usr/local/bin
-COPY init-seedstore.sh /usr/local/bin/init-seedstore.sh
 VOLUME /config
 
 EXPOSE 1883 22
 
-ENTRYPOINT [ "init-seedstore.sh" ]
+ENTRYPOINT [ "seedstore" ]
 CMD [ "subscribe", "--configDir", "/config" ]
