@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strconv"
+	"syscall"
 )
 
 func CheckIfCommandExists(bin string) (path string, err error) {
@@ -27,6 +29,28 @@ func CheckIfCommandExists(bin string) (path string, err error) {
 func RunCommand(binPath string, args string) (exitCode int, e error) {
 	fullCmd := fmt.Sprintf("%s %s", binPath, args)
 	cmd := exec.Command("bash", "-c", fullCmd)
+	// This is mainly for running the command as a different user
+	// if the PGID and PUID are set
+	if os.Getenv("PGID") != "" && os.Getenv("PUID") != "" {
+		pgid, err := strconv.ParseInt(os.Getenv("PGID"), 10, 32)
+		if err != nil {
+			slog.Error("Error parsing PGID")
+			return 126, err
+		}
+
+		puid, err := strconv.ParseInt(os.Getenv("PUID"), 10, 32)
+		if err != nil {
+			slog.Error("Error parsing PUID")
+			return 126, err
+		}
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+		cmd.SysProcAttr.Credential = &syscall.Credential{
+			Uid: uint32(puid),
+			Gid: uint32(pgid),
+		}
+		cmd.Env = os.Environ()
+	}
+
 	var stdout, stderr bytes.Buffer
 	// Write to stdout/err but also capture it in a variable
 	prefixWriterStdOut := NewPrefixWriter(os.Stdout, "[CMD] ")
